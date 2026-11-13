@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Field Record — Enemies</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .enemy-layout { display:grid; grid-template-columns:minmax(240px,300px) minmax(0,1fr); gap:16px; align-items:start; }
+    .enemy-library { position:sticky; top:12px; display:grid; gap:9px; padding:13px; border:1px solid var(--line); border-radius:7px; background:var(--panel); }
+    .enemy-library .text-input { height:36px; }
+    .library-count { display:grid; grid-template-columns:auto 70px; gap:8px; align-items:center; }
+    .library-count .field-label { margin:0; }
+    .library-list { display:grid; gap:4px; max-height:58vh; overflow:auto; }
+    .library-item { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; align-items:center; padding:6px 8px; border:1px solid var(--table-line); border-radius:4px; background:var(--panel-raised); font-size:11px; }
+    .library-item strong { display:block; font-size:12px; }
+    .library-item small { color:var(--muted); font-size:10px; }
+    .library-item .button { padding:5px 9px; font-size:10px; }
+    .panel { margin-bottom:12px; padding:12px 13px; border:1px solid var(--line); border-radius:7px; background:var(--panel); }
+    .panel-head { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:9px; }
+    .panel-head h2 { font-size:15px; }
+    .panel-head .button { padding:6px 10px; font-size:11px; }
+    .panel-row { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
+    .panel-row label { display:grid; gap:4px; color:var(--muted); font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .panel-row .text-input { height:32px; font-size:12px; width:auto; }
+    /* Difficulty */
+    .threat-meter { position:relative; height:8px; margin:10px 0 4px; border-radius:4px; background:linear-gradient(90deg,var(--line) 0 25%,color-mix(in srgb,var(--accent) 35%,var(--line)) 25% 50%,color-mix(in srgb,var(--accent) 65%,var(--line)) 50% 75%,var(--accent) 75%); }
+    .threat-marker { position:absolute; top:-4px; width:4px; height:16px; margin-left:-2px; border-radius:2px; background:var(--text); box-shadow:0 0 0 2px var(--panel); }
+    .threat-scale { display:grid; grid-template-columns:repeat(5,1fr); color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .threat-scale span:not(:first-child) { text-align:center; } .threat-scale span:last-child { text-align:right; }
+    .threat-result { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
+    .threat-result b { font-size:20px; color:var(--accent); }
+    .threat-result small { color:var(--muted); font-size:11px; }
+    .xp-list { margin:6px 0 0; color:var(--muted); font-size:10px; line-height:1.5; }
+    /* Initiative tracker */
+    .tracker-order { display:grid; gap:4px; }
+    .tracker-row { display:grid; grid-template-columns:22px minmax(0,1fr) 62px 54px minmax(90px,.8fr); gap:8px; align-items:center; padding:6px 8px; border:1px solid var(--table-line); border-left:3px solid var(--line); border-radius:4px; background:var(--panel-raised); font-size:11px; }
+    .tracker-row.enemy { border-left-color:var(--red); }
+    .tracker-row.diver { border-left-color:var(--accent); }
+    .tracker-row.current { outline:2px solid var(--accent); outline-offset:1px; background:color-mix(in srgb,var(--accent) 12%,var(--panel-raised)); }
+    .tracker-row.down { opacity:.5; }
+    .tracker-row .pos { color:var(--muted); font-weight:900; text-align:center; }
+    .tracker-row strong { display:block; font-size:12px; overflow-wrap:anywhere; }
+    .tracker-row small { color:var(--muted); font-size:10px; }
+    .tracker-row .text-input { height:30px; font-size:12px; padding:0 7px; }
+    .tracker-row .roll-input { text-align:center; font-weight:800; }
+    .tracker-row .mod { color:var(--muted); font-size:10px; text-align:center; }
+    .tracker-row .mod b { display:block; color:var(--text); font-size:13px; }
+    .tracker-status { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+    .round-badge { padding:5px 10px; border-radius:4px; background:var(--accent); color:var(--accent-contrast); font-size:12px; font-weight:900; letter-spacing:.06em; }
+    .tracker-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+    .tracker-actions .button { padding:7px 11px; font-size:11px; }
+    .tracker-check { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:11px; }
+    .mini-hp { display:flex; align-items:center; gap:6px; }
+    .mini-hp .health-bar { flex:1; margin:0; min-width:40px; }
+    /* Encounter */
+    .enemy-tools { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+    .enemy-tools .button { padding:6px 10px; font-size:11px; }
+    .saved-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
+    .saved-row .text-input { height:32px; width:auto; min-width:150px; font-size:12px; }
+    .saved-row .button { padding:6px 10px; font-size:11px; }
+    .enemy-list { display:grid; gap:12px; }
+    .enemy-card { padding:13px; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:7px; background:var(--panel); }
+    .enemy-card.dead { opacity:.6; border-left-color:var(--muted); }
+    .enemy-card.compact { padding:8px 11px; }
+    .enemy-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:start; margin-bottom:10px; }
+    .enemy-card.compact .enemy-head { margin-bottom:0; }
+    .enemy-head .text-input { height:34px; font-size:15px; font-weight:800; }
+    .enemy-head .actions { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
+    .enemy-head .actions .button { padding:6px 9px; font-size:10px; }
+    .compact-line { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto; gap:10px; align-items:center; }
+    .compact-line strong { font-size:13px; }
+    .compact-line small { color:var(--muted); font-size:10px; }
+    .compact-actions { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; align-items:center; }
+    .compact-actions .button { padding:6px 9px; font-size:10px; }
+    .compact-stats { display:flex; gap:10px; color:var(--muted); font-size:10px; }
+    .compact-stats b { color:var(--accent); font-size:13px; }
+    .enemy-meta { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+    .enemy-meta label { display:grid; gap:4px; color:var(--muted); font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .enemy-meta .text-input { height:32px; width:auto; min-width:90px; font-size:12px; }
+    .enemy-stats { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; margin-bottom:10px; }
+    .enemy-stats label { display:grid; gap:3px; padding:6px 4px; border:1px solid var(--table-line); border-radius:4px; background:var(--panel-raised); text-align:center; }
+    .enemy-stats span { color:var(--muted); font-size:8px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .enemy-stats input { width:100%; padding:0; border:0; background:transparent; color:var(--accent); font-size:17px; font-weight:900; text-align:center; font-variant-numeric:tabular-nums; }
+    .enemy-stats input::placeholder { color:var(--accent); opacity:1; }
+    .enemy-stats input:not(:placeholder-shown) { text-decoration:underline dotted; }
+    .enemy-hp { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; margin-bottom:10px; }
+    .enemy-hp .health-bar { margin-top:5px; }
+    .enemy-hp-actions { display:flex; gap:6px; }
+    .enemy-hp-actions .text-input { width:90px; height:32px; }
+    .enemy-hp-actions .button { padding:6px 9px; font-size:11px; }
+    .enemy-section { margin-top:9px; }
+    .enemy-section h4 { margin:0 0 5px; color:var(--muted); font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .attack-row { display:grid; grid-template-columns:minmax(0,2fr) 80px minmax(0,1fr) auto auto auto; gap:6px; margin-bottom:5px; align-items:center; }
+    .attack-row .strike-button { color:var(--accent); font-size:13px; }
+    .attack-row .strike-button.open { background:var(--accent); color:var(--accent-contrast); border-color:var(--accent); }
+    .strike-form { margin:0 0 8px; padding:10px; border:1px solid var(--accent); border-radius:6px; background:var(--panel-raised); }
+    .strike-crit { align-content:end; }
+    .strike-crit input { width:auto; margin-right:4px; }
+    .mission-row { margin-bottom:10px; }
+    .mission-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-bottom:9px; }
+    .mission-box { padding:10px; border:1px solid var(--table-line); border-radius:6px; background:var(--panel-raised); }
+    .mission-box + .mission-box { margin-top:0; }
+    .objectives, .mission-panel-log { margin-bottom:9px; }
+    .clock-head { display:flex; justify-content:space-between; align-items:center; }
+    .clock-head .field-label { margin:0; }
+    .clock-head b { font-size:24px; color:var(--accent); font-variant-numeric:tabular-nums; }
+    .clock-head b.clock-low { color:var(--red); }
+    .counter .field-label { margin-bottom:4px; }
+    .counter-row { display:flex; align-items:center; gap:8px; }
+    .counter-row b { min-width:44px; text-align:center; font-size:16px; color:var(--accent); font-variant-numeric:tabular-nums; }
+    .counter-row button { width:26px; height:26px; padding:0; border:1px solid var(--line); border-radius:4px; background:var(--panel); color:var(--accent); cursor:pointer; font-weight:800; }
+    .sample-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+    .sample-row .counter-row { gap:4px; } .sample-row .counter-row b { min-width:24px; }
+    .reinforce-row { display:flex; gap:6px; margin-top:8px; }
+    .reinforce-row .text-input { height:32px; font-size:12px; }
+    .reinforce-row .button { padding:6px 10px; font-size:11px; }
+    .objective { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid var(--table-line); font-size:12px; }
+    .objective.done span { color:var(--muted); text-decoration:line-through; }
+    .objective button { width:22px; height:22px; padding:0; border:1px solid var(--line); border-radius:4px; background:var(--panel); color:var(--muted); cursor:pointer; }
+    .objective-add { display:flex; gap:6px; margin-top:8px; }
+    .objective-add .text-input { height:32px; font-size:12px; }
+    .objective-add .button { padding:6px 12px; font-size:11px; }
+    .gm-log { margin:4px 0 0; padding-left:16px; color:var(--muted); font-size:10.5px; line-height:1.5; }
+    #missionBody > .mission-box { margin-bottom:9px; }
+    .attack-row .text-input { height:30px; font-size:12px; }
+    .attack-row .roll { color:var(--accent); font-weight:900; font-size:13px; min-width:34px; text-align:right; }
+    .attack-row button { width:24px; height:24px; padding:0; border:1px solid var(--line); border-radius:4px; background:var(--panel-raised); color:var(--muted); cursor:pointer; }
+    .wiki-link { color:var(--accent); font-style:normal; font-weight:700; text-decoration:none; white-space:nowrap; }
+    .wiki-link:hover { text-decoration:underline; }
+    .hit-form { margin:0 0 10px; padding:10px; border:1px solid var(--line); border-radius:6px; background:var(--panel-raised); }
+    .hit-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+    .hit-grid label { display:grid; gap:4px; min-width:0; color:var(--muted); font-size:9px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .hit-grid .text-input { height:32px; font-size:12px; min-width:0; }
+    .hit-grid .hit-wide { grid-column:span 2; }
+    .hit-preview { margin:8px 0 0; font-size:11px; color:var(--text); }
+    .hit-bad { color:var(--red); font-weight:700; }
+    .hit-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .hit-actions .button { padding:7px 11px; font-size:11px; }
+    .hit-form .last-hit { margin-top:8px; }
+    .anatomy-table tr.destroyed td { color:var(--muted); text-decoration:line-through; }
+    .to-hit { margin:4px 0 6px; color:var(--muted); font-size:10px; line-height:1.5; }
+    .to-hit b { color:var(--text); }
+    .enemy-card textarea { min-height:52px; font-size:12px; }
+    .enemy-empty { padding:30px; border:1px dashed var(--line); border-radius:7px; color:var(--muted); text-align:center; font-size:12px; }
+    .rule-box { margin-top:14px; padding:11px 13px; border:1px solid var(--line); border-radius:7px; background:var(--panel); color:var(--muted); font-size:11px; line-height:1.55; }
+    .rule-box strong { color:var(--text); }
+    .rule-box p { margin:0 0 6px; }
+    @media(max-width:850px) { .enemy-layout { grid-template-columns:1fr; } .enemy-library { position:static; } .library-list { max-height:40vh; } .enemy-stats { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    @media(max-width:560px) {
+      .attack-row { grid-template-columns:minmax(0,1fr) 70px auto auto auto; }
+      .mission-grid { grid-template-columns:1fr; } .attack-row .type { display:none; } .enemy-hp { grid-template-columns:1fr; }
+      .tracker-row { grid-template-columns:20px minmax(0,1fr) 56px 46px; } .tracker-row .tracker-extra { grid-column:2/-1; }
+      .compact-line { grid-template-columns:minmax(0,1fr) auto; } .compact-line .mini-hp { grid-column:1/-1; order:3; }
+      .enemy-head { grid-template-columns:1fr; } .enemy-head .actions { justify-content:flex-start; }
+      .text-input { font-size:16px !important; }
+      .hit-grid { grid-template-columns:1fr 1fr; }
+    }
+    @media print { .enemy-hp-actions,.enemy-head .actions,.attack-row button,.add-attack,#trackerPanel,#missionPanel,.strike-form,.strike-button,.hit-form,.saved-row,.enemy-tools .stratagem-time,.panel-row { display:none!important; } .enemy-layout { grid-template-columns:1fr; } .enemy-card { break-inside:avoid; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">H</span><span>HELLDIVERS ROLEPLAY</span></div>
+      <nav class="page-tabs" aria-label="Pages"><a href="index.html">Character builder</a><a href="enemies.html" aria-current="page">Enemies</a></nav>
+    </header>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">GM / Threat assessment</p>
+        <h1>Enemies</h1>
+        <p class="subtitle">Build an encounter from the wiki library or your own enemies, see how dangerous it is for your squad, then run it with the initiative tracker. Every number can be overwritten.</p>
+      </div>
+      <div class="hero-side"><div class="toolbar"><button class="button primary" id="printEnemies">Print stat blocks</button></div></div>
+    </section>
+    <div class="enemy-layout">
+      <aside class="enemy-library" aria-label="Enemy library">
+        <span class="field-label">Library</span>
+        <input class="text-input" id="librarySearch" type="search" placeholder="Search enemies" aria-label="Search enemies" autocomplete="off">
+        <select class="text-input" id="libraryFaction" aria-label="Faction"><option value="">All factions</option></select>
+        <div class="library-count"><label class="field-label" for="addCount">How many to add</label><input class="text-input" id="addCount" type="number" min="1" max="30" value="1"></div>
+        <button type="button" class="button" id="addCustom">+ Custom enemy</button>
+        <div class="library-list" id="libraryList"></div>
+        <p class="attack-note" id="librarySource"></p>
+      </aside>
+      <div>
+        <section class="panel" id="missionPanel" aria-labelledby="missionTitle">
+          <div class="panel-head"><h2 id="missionTitle">Mission</h2><span class="stratagem-time"><button type="button" class="button primary" id="startMission" title="Reset this panel and send every diver out at full HP with a fresh loadout">Start new mission</button></span></div>
+          <div id="missionBody"></div>
+        </section>
+        <section class="panel" id="difficultyPanel" aria-labelledby="difficultyTitle">
+          <div class="panel-head"><h2 id="difficultyTitle">Encounter difficulty</h2>
+            <div class="panel-row">
+              <label>Party level<input class="text-input" type="number" id="partyLevel" min="1" max="20" style="width:70px"></label>
+              <label>Party size<input class="text-input" type="number" id="partySize" min="1" max="12" style="width:70px"></label>
+              <button type="button" class="button" id="partyFromSquad" title="Use the characters saved in the Character builder">From squad</button>
+            </div>
+          </div>
+          <div id="difficultyBody"></div>
+        </section>
+        <section class="panel" id="trackerPanel" aria-labelledby="trackerTitle">
+          <div class="panel-head"><h2 id="trackerTitle">Initiative tracker</h2><span class="stratagem-time" id="trackerTopActions"></span></div>
+          <div id="trackerBody"></div>
+        </section>
+        <section aria-labelledby="encounterTitle">
+          <div class="enemy-tools">
+            <h2 id="encounterTitle">Encounter <span class="section-meta" id="enemyCount"></span></h2>
+            <span class="stratagem-time"><button type="button" class="button" id="toggleCompact">Compact all</button><button type="button" class="button" id="healAll">Restore all HP</button><button type="button" class="button" id="clearEnemies">Clear encounter</button></span>
+          </div>
+          <div class="saved-row">
+            <input class="text-input" id="encounterName" maxlength="50" placeholder="Encounter name" aria-label="Encounter name" autocomplete="off">
+            <button type="button" class="button primary" id="saveEncounter">Save encounter</button>
+            <select class="text-input" id="savedEncounters" aria-label="Saved encounters"></select>
+            <button type="button" class="button" id="loadEncounter">Load</button>
+            <button type="button" class="button" id="deleteEncounter">Delete</button>
+          </div>
+          <div class="enemy-list" id="enemyList"></div>
+          <div class="rule-box">
+            <p><strong>How the numbers are set (house rule, balanced against this table's player math).</strong>
+            At Moderate threat: <strong>AC = 15 + level</strong> (a trained diver of that level hits about half the time), adjusted by body armor (Unarmored −1, Light ±0, Medium +1, Heavy +2, Anti-Tank +3). Armor values (AV) use the same scale as weapon penetration (AP), so a Heavy (AV 4) part needs Heavy (AP 4) penetration;
+            <strong>Attack = level + 6</strong>; <strong>Fort, Ref, Will and Perception = level + 4</strong>; <strong>Ability DC = level + 15</strong>.
+            High threat is +2 to all of these, Low −2. Damage, health and armor are the game's own numbers.</p>
+            <p><strong>Enemy levels follow the Character builder's level guide</strong> (set in <code>data/enemy-levels.js</code>, edit freely): 0–1 fodder and conscripts (Scavenger, Voteless, Trooper), 2–3 veteran soldiers and elites (Hive Guard, Devastator, Overseer), 4–5 specialists (Heavy Devastator, Stalker, Alpha Commander), 6–8 heroic monsters (Charger 6, Hulks 6–7, Impaler and tanks 8), 9 legends (Bile Titan, Dragonroach), and 10+ colossal threats beyond any one diver (Factory Strider and Vox Engine 10, Leviathan 11, Hive Lord 12).</p>
+            <p><strong>Difficulty (PF2e encounter budget).</strong> Each enemy is worth XP by its level compared with the party's: −4: 10 · −3: 15 · −2: 20 · −1: 30 · same: 40 · +1: 60 · +2: 80 · +3: 120 · +4: 160. High threat counts as one level higher, Low as one lower (like PF2e elite and weak). For 4 divers: Trivial 40 · Low 60 · Moderate 80 · Severe 120 · Extreme 160; each diver more or fewer adds or removes 10 / 15 / 20 / 30 / 40.
+            Helldivers throws big hordes of weak enemies, so expect swarms to rate high on paper: treat it as a guide, not a rule.</p>
+            <p><strong>Hit locations and penetration (wiki Damage page).</strong> Pick where the shot lands, the weapon (or type damage and AP by hand) and how many hits. Penetration above the part's armor value deals full damage, equal deals 65%, below ricochets for nothing. The part loses the damage and passes its "% to Main" on to Main HP (capped at the part's full HP); parts listed as "Main" only damage Main. Destroying a fatal part kills the enemy. Explosive damage is cut by the enemy's explosive resistance. The quick damage boxes on compact cards and in the tracker skip all of this and go straight to Main HP.</p>
+            <p><strong>Initiative.</strong> Divers use their sheet's initiative; enemies roll Perception. Type in each roll (from your dice bot), then Sort. On a tie, enemies act first (PF2e). Next turn skips downed enemies and counts rounds; tick the box to count squad stratagem cooldowns down in the Character builder too.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+    <footer><span>FIELD OPERATIONS · THREAT ASSESSMENT</span><span>Enemy data from the Helldivers Wiki · saved on this device</span></footer>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="data/enemy-stats.js"></script>
+  <script src="data/enemy-levels.js"></script>
+  <script src="data/item-stats.js"></script>
+  <script src="data/item-overrides.js"></script>
+  <script>
+    const library = window.FIELD_RECORD_ENEMY_STATS || {enemies:{}};
+    const ENEMY_LEVELS = window.FIELD_RECORD_ENEMY_LEVELS || {};
+    const storageKey = "helldivers-field-record-v1";
+    const enemiesKey = storageKey+"-enemies";
+    const trackerKey = storageKey+"-tracker";
+    const partyKey = storageKey+"-party";
+    const savedKey = storageKey+"-encounters";
+    const squadSummaryKey = storageKey+"-squad-summary";
+    const pendingRoundsKey = storageKey+"-pending-rounds";
+    const esc = value => String(value??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const wikiUrl = title => "https://helldivers.wiki.gg/wiki/"+encodeURIComponent(String(title||"").replace(/ /g,"_"));
+    const formatModifier = value => value<0 ? `−${Math.abs(value)}` : `+${value}`;
+    const readJson = key => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
+    const writeJson = (key,value) => { try { localStorage.setItem(key,JSON.stringify(value)); return true; } catch { showToast("Browser storage unavailable"); return false; } };
+    let toastTimer;
+    function showToast(message) { const node=document.getElementById("toast"); node.textContent=message; node.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>node.classList.remove("show"),2400); }
+
+    // Match the theme of the character open in the builder.
+    try {
+      const roster=readJson(storageKey+"-roster");
+      const theme=roster?.characters?.[roster.activeId]?.theme;
+      if(["loyalist","dissident","merc"].includes(theme))document.documentElement.dataset.theme=theme;
+    } catch { /* Default theme. */ }
+
+    // House rule: PF2e-style numbers from level and threat, balanced against this sheet's player math.
+    const THREAT = {low:-2, moderate:0, high:2};
+    // Body armor uses the game's armor value (AV), on the same scale as weapon penetration (AP).
+    const ARMOR_OPTIONS = ["Unarmored (AV 0)","Unarmored (AV 1)","Light (AV 2)","Medium (AV 3)","Heavy (AV 4)","Anti-Tank 1 (AV 5)","Anti-Tank 2 (AV 6)","Anti-Tank 3 (AV 7)"];
+    const ARMOR_AC = {"Unarmored":-1, "Light":0, "Medium":1, "Heavy":2};
+    const armorAc = armor => { const name=String(armor||"").replace(/\s*\(AV.*$/,""); return name in ARMOR_AC ? ARMOR_AC[name] : /anti-tank/i.test(name) ? 3 : 0; };
+    const STATS = [
+      ["ac","AC",(e)=>15+e.level+THREAT[e.threat]+armorAc(e.armor)],
+      ["attack","Attack",(e)=>e.level+6+THREAT[e.threat]],
+      ["fort","Fort",(e)=>e.level+4+THREAT[e.threat]],
+      ["ref","Ref",(e)=>e.level+4+THREAT[e.threat]],
+      ["will","Will",(e)=>e.level+4+THREAT[e.threat]],
+      ["perception","Perc",(e)=>e.level+4+THREAT[e.threat]],
+      ["dc","Ability DC",(e)=>e.level+15+THREAT[e.threat]]
+    ];
+    const statValue = (enemy,key) => {
+      const override=enemy.overrides?.[key];
+      return Number.isFinite(override)?override:STATS.find(([k])=>k===key)[2](enemy);
+    };
+
+    // ---- Squad (from the Character builder) ---------------------------------------------------
+    const squad = () => (readJson(squadSummaryKey)?.characters||[]).filter(c=>c&&typeof c.name==="string");
+
+    // ---- Encounter state ----------------------------------------------------------------------
+    const newId = () => "enemy-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);
+    function normalizeEnemy(source) {
+      if(!source||typeof source!=="object")return null;
+      const number=(value,fallback,min=0,max=1e6)=>{const n=Math.round(Number(value));return Number.isFinite(n)?Math.max(min,Math.min(max,n)):fallback;};
+      const maxHp=number(source.maxHp,null,1);
+      const overrides={};
+      Object.entries(source.overrides||{}).forEach(([key,value])=>{if(STATS.some(([k])=>k===key)&&Number.isFinite(Number(value)))overrides[key]=Math.round(Number(value));});
+      return {
+        id:typeof source.id==="string"?source.id:newId(), base:typeof source.base==="string"?source.base:null,
+        name:String(source.name||"Unnamed enemy").slice(0,60), faction:String(source.faction||"").slice(0,40),
+        threat:source.threat in THREAT?source.threat:"moderate",
+        armor:typeof source.armor==="string"?source.armor:"", maxHp, hp:maxHp===null?null:number(source.hp,maxHp,0,maxHp),
+        overrides,
+        attacks:(Array.isArray(source.attacks)?source.attacks:[]).map(a=>({name:String(a?.name||"").slice(0,60),damage:a?.damage===""||a?.damage==null?"":number(a.damage,""),type:String(a?.type||"").slice(0,30)})),
+        notes:String(source.notes||"").slice(0,2000),
+        conditions:String(source.conditions||"").slice(0,120),
+        compact:Boolean(source.compact),
+        // Current HP of each tracked body part: {partIndex: [hp of each copy]}.
+        parts:Object.fromEntries(Object.entries(source.parts&&typeof source.parts==="object"?source.parts:{}).filter(([,list])=>Array.isArray(list)).map(([key,list])=>[key,list.map(hp=>Math.max(0,Math.round(Number(hp))||0))])),
+        hitPrefs:source.hitPrefs&&typeof source.hitPrefs==="object"?{loc:String(source.hitPrefs.loc??"main"),copy:number(source.hitPrefs.copy,1,1,50),ap:number(source.hitPrefs.ap,2,0,10),type:source.hitPrefs.type==="explosive"?"explosive":"standard",weapon:String(source.hitPrefs.weapon||""),damage:source.hitPrefs.damage===""||source.hitPrefs.damage==null?"":number(source.hitPrefs.damage,""),hits:number(source.hitPrefs.hits,1,1,60)}:{loc:"main",copy:1,ap:2,type:"standard",weapon:"",damage:"",hits:1},
+        lastHit:String(source.lastHit||"").slice(0,600),
+        // Enemies saved before the level guide pass move to their new level unless the GM had changed it.
+        level:source.levelV2||!source.base||!library.enemies[source.base]?number(source.level,1,0,20):(number(source.level,1,0,20)===oldDefaultLevel(source.base)?defaultLevel(source.base):number(source.level,1,0,20)),
+        levelV2:true
+      };
+    }
+    function oldDefaultLevel(title) { return Math.max(1,Math.min(15,(library.enemies[title]?.minDifficulty||2)-1)); }
+    function defaultLevel(title) { const set=ENEMY_LEVELS[title]; return Number.isFinite(set)?set:oldDefaultLevel(title); }
+
+    // ---- Hit locations and armor penetration (wiki "Damage" page) -----------------------------
+    // AP above the part's AV: full damage. AP equal: 65%. AP below: ricochet, no damage.
+    // A hit on a part damages that part and passes its "% to Main" on to Main HP (capped at the part's
+    // full HP). Parts listed with "Main" health only pass damage to Main. Destroying a fatal part kills.
+    // Explosive damage is reduced by the enemy's explosive resistance.
+    const PEN_NAMES = {0:"Unarmored",1:"Unarmored",2:"Light",3:"Medium",4:"Heavy"};
+    const penName = n => n>=5?`Anti-Tank ${n-4}`:PEN_NAMES[n]||"";
+    const avOf = text => { const m=String(text||"").match(/AV\s*(\d+)/i); return m?Number(m[1]):null; };
+    const percentOf = text => { const m=String(text||"").match(/(\d+(?:\.\d+)?)\s*%/); return m?Number(m[1])/100:1; };
+    function partList(enemy) {
+      const data=enemy.base?library.enemies[enemy.base]:null;
+      return (data?.parts||[]).map((part,index)=>{
+        const count=Number(String(part.name).match(/\((\d+)\)\s*$/)?.[1])||1;
+        const maxHp=typeof part.health==="number"?part.health:Number.isFinite(Number(part.health))&&String(part.health).trim()!==""?Number(part.health):null;
+        return {index,name:String(part.name).replace(/\s*\(\d+\)\s*$/,""),count,maxHp,av:avOf(part.armor)??0,armor:part.armor||"",toMain:String(part.toMain||"").trim()==="-"?1:percentOf(part.toMain),fatal:String(part.fatal||""),isFatal:/^yes/i.test(String(part.fatal||"")),downs:/downs/i.test(String(part.fatal||""))};
+      });
+    }
+    function partHp(enemy,part,copy) {
+      if(part.maxHp===null)return null;
+      const list=enemy.parts[part.index]||(enemy.parts[part.index]=Array(part.count).fill(part.maxHp));
+      while(list.length<part.count)list.push(part.maxHp);
+      return list[copy-1]??part.maxHp;
+    }
+    const penFactor = (ap,av) => ap>av?1:ap===av?.65:0;
+    function explosiveResist(enemy) { const data=enemy.base?library.enemies[enemy.base]:null; return data?.explosiveResist?percentOf(data.explosiveResist):0; }
+    function applyHit(enemy,{loc,copy,damage,ap,explosive,hits}) {
+      if(!enemy.maxHp)return "Set a Max HP first.";
+      const parts=partList(enemy); const part=loc==="main"?null:parts[Number(loc)];
+      const av=part?part.av:(avOf(enemy.armor)??0);
+      const factor=penFactor(ap,av);
+      const exr=explosive?explosiveResist(enemy):0;
+      const where=part?`${part.name}${part.count>1?" #"+copy:""}`:"Body";
+      const armorText=`${penName(av)} AV ${av}`;
+      if(factor===0)return `${where} (${armorText}) vs AP ${ap}: ricochet, no damage.`;
+      const perHit=Math.round(damage*factor*(1-exr));
+      let toMain=0, partDone=0, destroyed=false, hitsLanded=0;
+      for(let i=0;i<hits&&enemy.hp>0;i++){
+        hitsLanded++;
+        if(!part){ toMain+=perHit; enemy.hp=Math.max(0,enemy.hp-perHit); continue; }
+        if(part.maxHp!==null){
+          const before=partHp(enemy,part,copy);
+          const after=Math.max(0,before-perHit);
+          enemy.parts[part.index][copy-1]=after; partDone+=before-after;
+          const main=Math.round(Math.min(perHit,part.maxHp)*part.toMain);
+          toMain+=main; enemy.hp=Math.max(0,enemy.hp-main);
+          if(before>0&&after===0){destroyed=true; if(part.isFatal){enemy.hp=0;}}
+        } else {
+          const main=Math.round(perHit*part.toMain); toMain+=main; enemy.hp=Math.max(0,enemy.hp-main);
+        }
+      }
+      const bits=[`${where} (${armorText}) vs AP ${ap}: ${factor===1?"full damage":"65% (AP equals AV)"}${exr?`, −${Math.round(exr*100)}% explosive resistance`:""}`,
+        `${hitsLanded>1?hitsLanded+" hits × ":""}${perHit} damage`];
+      if(part&&part.maxHp!==null)bits.push(`part ${partHp(enemy,part,copy)}/${part.maxHp}`);
+      bits.push(`${toMain} to Main${part?` (${Math.round(part.toMain*100)}%)`:""} → ${enemy.hp.toLocaleString()}/${enemy.maxHp.toLocaleString()}`);
+      if(destroyed)bits.push(`${part.name} destroyed${part.isFatal?" · fatal: enemy killed":part.downs?" · enemy is downed / slowed":""}`);
+      else if(enemy.hp===0)bits.push("enemy down");
+      return bits.join(" · ");
+    }
+
+    // ---- Weapon presets (from the item data) ---------------------------------------------------
+    const itemData = window.FIELD_RECORD_ITEM_STATS || {items:{}};
+    const itemOverrides = window.FIELD_RECORD_ITEM_OVERRIDES || {};
+    const itemStats = name => ({...(itemData.items[name]?.stats||{}),...(itemOverrides[name]?.stats||{})});
+    // Splits "325 Projectile Ballistic (APHET) / 150 Explosion" + "Heavy (AP 4) (APHET) / Medium (AP 3) (Flak)" into attacks.
+    function weaponAttacks(name) {
+      const stats=itemStats(name); if(!stats.Damage||!stats.Penetration)return [];
+      const pens=String(stats.Penetration).split(/\s+\/\s+/).map(text=>({ap:Number(text.match(/AP\s*(\d+)/i)?.[1]),label:(text.match(/\(([^()]*)\)\s*$/)?.[1]||"").toLowerCase(),text})).filter(p=>Number.isFinite(p.ap));
+      if(!pens.length)return [];
+      return String(stats.Damage).split(/\s+\/\s+/).map(text=>{
+        const damage=Number(text.replace(/,/g,"").match(/\d+/)?.[0]); if(!damage)return null;
+        const explosive=/explosi/i.test(text); const lower=text.toLowerCase();
+        const pen=pens.length===1?pens[0]:pens.find(p=>p.label&&!/^ap/.test(p.label)&&lower.includes(p.label))||(explosive?pens.find(p=>/explosi/.test(p.label)):pens.find(p=>/projectile|impact|direct/.test(p.label)))||pens[0];
+        return {label:text.trim(),damage,ap:pen.ap,explosive};
+      }).filter(Boolean);
+    }
+    const WEAPON_KINDS = [["primary","Primaries"],["secondary","Secondaries"],["throwable","Throwables"],["stratagems","Stratagems"]];
+    function weaponOptions(selected) {
+      const option=(value,label)=>`<option value="${esc(value)}"${value===selected?" selected":""}>${esc(label)}</option>`;
+      const attackOptions=name=>weaponAttacks(name).map((a,i)=>option(`${name}::${i}`,`${name} · ${a.label} · AP ${a.ap}`)).join("");
+      const squadGroups=squad().filter(m=>m.weapons?.length).map(m=>`<optgroup label="${esc(m.name)}'s kit">${m.weapons.map(attackOptions).join("")}</optgroup>`).join("");
+      const all=WEAPON_KINDS.map(([kind,label])=>{const names=Object.keys(itemData.items).filter(n=>itemData.items[n].kind===kind&&weaponAttacks(n).length).sort((a,b)=>a.localeCompare(b));return names.length?`<optgroup label="All ${label.toLowerCase()}">${names.map(attackOptions).join("")}</optgroup>`:"";}).join("");
+      return option("","Enter damage by hand")+squadGroups+all;
+    }
+    function weaponPreset(value) { const [name,index]=String(value||"").split("::"); return name?weaponAttacks(name)[Number(index)]||null:null; }
+    let encounter = (readJson(enemiesKey)?.enemies||[]).map(normalizeEnemy).filter(Boolean);
+    function persist() { writeJson(enemiesKey,{enemies:encounter}); }
+    // Numbers repeated enemies: "Scavenger", "Scavenger 2", "Scavenger 3"…
+    function uniqueName(name) {
+      const base=name.replace(/\s+\d+$/,"");
+      const taken=new Set(encounter.map(e=>e.name));
+      if(!taken.has(base))return base;
+      let n=2; while(taken.has(`${base} ${n}`))n++;
+      return `${base} ${n}`;
+    }
+    function enemyFromLibrary(title) {
+      const data=library.enemies[title];
+      const level=defaultLevel(title);
+      return normalizeEnemy({base:title,name:uniqueName(title),faction:data.faction,level,levelV2:true,threat:"moderate",armor:data.armor||"",maxHp:data.health||null,hp:data.health||null,attacks:(data.attacks||[]).map(a=>({name:a.name,damage:a.damage??"",type:a.type}))});
+    }
+    const addCount = () => Math.max(1,Math.min(30,Math.round(Number(document.getElementById("addCount").value))||1));
+
+    // ---- Difficulty (PF2e XP budget) ----------------------------------------------------------
+    const XP_BY_DIFF = {"-4":10,"-3":15,"-2":20,"-1":30,"0":40,"1":60,"2":80,"3":120,"4":160};
+    const THREAT_LEVELS = [["Trivial",40,10],["Low",60,15],["Moderate",80,20],["Severe",120,30],["Extreme",160,40]];
+    let party = readJson(partyKey) || null;
+    function squadParty() {
+      const members=squad();
+      if(!members.length)return {level:1,size:4};
+      return {level:Math.max(1,Math.round(members.reduce((s,c)=>s+(Number(c.level)||1),0)/members.length)),size:members.length};
+    }
+    if(!party||!Number.isFinite(party.level)||!Number.isFinite(party.size))party=squadParty();
+    function enemyXp(enemy) {
+      const effective=enemy.level+(enemy.threat==="high"?1:enemy.threat==="low"?-1:0);
+      const diff=effective-party.level;
+      if(diff<-4)return {xp:0,diff,note:"too weak to count"};
+      if(diff>4)return {xp:160,diff,note:"far above the party: dangerous even alone"};
+      return {xp:XP_BY_DIFF[String(diff)],diff};
+    }
+    function renderDifficulty() {
+      document.getElementById("partyLevel").value=party.level;
+      document.getElementById("partySize").value=party.size;
+      const body=document.getElementById("difficultyBody");
+      const living=encounter.filter(e=>!(e.maxHp&&e.hp===0));
+      if(!living.length){body.innerHTML='<p class="attack-note">Add enemies to rate the encounter.</p>';return;}
+      const budgets=THREAT_LEVELS.map(([name,base,step])=>[name,Math.max(step,base+(party.size-4)*step)]);
+      const groups={};
+      living.forEach(enemy=>{const {xp,diff,note}=enemyXp(enemy);const key=(enemy.base||enemy.name.replace(/\s+\d+$/,""))+"|"+enemy.level+"|"+enemy.threat;(groups[key]||(groups[key]={name:enemy.base||enemy.name.replace(/\s+\d+$/,""),level:enemy.level,threat:enemy.threat,xp,diff,note,count:0})).count++;});
+      const total=Object.values(groups).reduce((sum,g)=>sum+g.xp*g.count,0);
+      let rating="Trivial";
+      budgets.forEach(([name,budget],index)=>{ if(index>0&&total>=budget)rating=name; });
+      if(total>budgets[4][1]*1.25)rating="Beyond extreme";
+      const extreme=budgets[4][1];
+      const pos=Math.min(100,total/(extreme*1.25)*100);
+      const ticks=budgets.map(([name,budget])=>`<span>${name} ${budget}</span>`).join("");
+      body.innerHTML=`<div class="threat-result"><b>${rating}</b><small>${total} XP · budget for ${party.size} diver${party.size===1?"":"s"} at level ${party.level}: ${budgets.map(([n,b])=>n+" "+b).join(" · ")}</small></div>
+        <div class="threat-meter" role="img" aria-label="${rating} threat, ${total} XP"><span class="threat-marker" style="left:${pos}%"></span></div><div class="threat-scale">${ticks}</div>
+        <p class="xp-list">${Object.values(groups).map(g=>`${g.count>1?g.count+"× ":""}${esc(g.name)} (level ${g.level}${g.threat!=="moderate"?", "+g.threat:""}, ${g.diff>=0?"+":""}${g.diff} vs party): ${g.xp}${g.count>1?` each = ${g.xp*g.count}`:""} XP${g.note?` · ${g.note}`:""}`).join("<br>")}</p>`;
+    }
+
+    // ---- Initiative tracker -------------------------------------------------------------------
+    // order entries: {key, kind:"diver"|"enemy", ref (character or enemy id), roll (number|null), note}
+    let tracker = readJson(trackerKey) || {active:false,round:1,turn:0,order:[],countdown:false};
+    function persistTracker() { writeJson(trackerKey,tracker); }
+    const enemyById = id => encounter.find(e=>e.id===id);
+    const isDown = entry => entry.kind==="enemy"&&(()=>{const e=enemyById(entry.ref);return e&&e.maxHp&&e.hp===0;})();
+    function entryInfo(entry) {
+      if(entry.kind==="enemy"){
+        const enemy=enemyById(entry.ref); if(!enemy)return null;
+        return {name:enemy.name,mod:statValue(enemy,"perception"),modName:"Perception",enemy};
+      }
+      const member=squad().find(c=>c.id===entry.ref); if(!member)return {name:entry.name||"Diver",mod:entry.mod??0,modName:"Initiative",member:null};
+      entry.name=member.name; entry.mod=member.initiative;
+      return {name:member.name,mod:member.initiative,modName:member.initiativeName||"Perception",member};
+    }
+    // Keep the order in step with the encounter: drop removed enemies, add new ones (unrolled) at the end.
+    function syncTracker() {
+      if(!tracker.active)return;
+      const current=tracker.order[tracker.turn];
+      tracker.order=tracker.order.filter(entry=>entry.kind==="diver"||enemyById(entry.ref));
+      encounter.forEach(enemy=>{ if(!tracker.order.some(entry=>entry.kind==="enemy"&&entry.ref===enemy.id))tracker.order.push({key:"e-"+enemy.id,kind:"enemy",ref:enemy.id,roll:null,note:""}); });
+      const index=current?tracker.order.indexOf(current):-1;
+      tracker.turn=index>=0?index:Math.min(tracker.turn,Math.max(0,tracker.order.length-1));
+    }
+    function startTracker() {
+      tracker={active:true,round:1,turn:0,countdown:tracker.countdown,order:[
+        ...squad().map(member=>({key:"d-"+member.id,kind:"diver",ref:member.id,name:member.name,mod:member.initiative,roll:null,note:""})),
+        ...encounter.filter(e=>!(e.maxHp&&e.hp===0)).map(enemy=>({key:"e-"+enemy.id,kind:"enemy",ref:enemy.id,roll:null,note:""}))
+      ]};
+      persistTracker(); renderTracker();
+      showToast(squad().length?"Type in everyone's initiative rolls, then Sort":"No squad found: open the Character builder once, or add divers by hand");
+    }
+    function sortTracker() {
+      const current=tracker.order[tracker.turn];
+      // Highest roll first; on a tie enemies go before divers (PF2e); unrolled entries last.
+      tracker.order.sort((a,b)=>{
+        if(a.roll==null&&b.roll==null)return 0; if(a.roll==null)return 1; if(b.roll==null)return -1;
+        if(b.roll!==a.roll)return b.roll-a.roll;
+        if(a.kind!==b.kind)return a.kind==="enemy"?-1:1;
+        return (entryInfo(b)?.mod||0)-(entryInfo(a)?.mod||0);
+      });
+      tracker.turn=tracker.round===1&&!tracker.started?0:Math.max(0,tracker.order.indexOf(current));
+      persistTracker(); renderTracker();
+    }
+    function advanceTurn(step) {
+      const count=tracker.order.length; if(!count)return;
+      tracker.started=true;
+      let index=tracker.turn, guard=0, wrapped=0;
+      do {
+        index+=step;
+        if(index>=count){index=0;wrapped++;}
+        if(index<0){index=count-1;wrapped--;}
+        guard++;
+      } while(isDown(tracker.order[index])&&guard<count);
+      tracker.turn=index;
+      if(wrapped>0){
+        tracker.round+=wrapped;
+        if(tracker.countdown){
+          const pending=(Number(localStorage.getItem(pendingRoundsKey))||0)+wrapped;
+          try { localStorage.setItem(pendingRoundsKey,String(pending)); } catch { /* ignore */ }
+        }
+        passMissionTime(6*wrapped); renderMission();
+        showToast(`Round ${tracker.round}`+(tracker.countdown?" · squad cooldowns count down":"")+(mission.started?` · mission clock ${clock(mission.timeLeft)}`:""));
+      } else if(wrapped<0) tracker.round=Math.max(1,tracker.round+wrapped);
+      persistTracker(); renderTracker();
+    }
+    function addDiverByHand() {
+      const name=window.prompt("Name of the diver or ally to add"); if(!name||!name.trim())return;
+      const mod=Math.round(Number(window.prompt("Their initiative modifier","0")))||0;
+      tracker.order.push({key:"x-"+newId(),kind:"diver",ref:"manual-"+newId(),name:name.trim().slice(0,40),mod,roll:null,note:""});
+      persistTracker(); renderTracker();
+    }
+    function renderTracker() {
+      const body=document.getElementById("trackerBody"), top=document.getElementById("trackerTopActions");
+      if(!tracker.active){
+        const members=squad();
+        top.innerHTML="";
+        body.innerHTML=`<p class="attack-note">${members.length?`Squad from the Character builder: ${members.map(m=>`<b>${esc(m.name)}</b> (init ${formatModifier(m.initiative)}, AC ${m.ac})`).join(", ")}.`:"No squad saved yet: open the Character builder once and your characters appear here. You can also add divers by hand."}</p><div class="tracker-actions"><button type="button" class="button primary" id="startTracker"${encounter.length||members.length?"":" disabled"}>Roll initiative</button></div>`;
+        return;
+      }
+      syncTracker();
+      top.innerHTML=`<button type="button" class="button" id="addDiver">+ Diver or ally</button><button type="button" class="button" id="endTracker">End encounter</button>`;
+      const rows=tracker.order.map((entry,index)=>{
+        const info=entryInfo(entry); if(!info)return "";
+        const down=isDown(entry); const enemy=info.enemy;
+        const hp=enemy?.maxHp?`<span class="mini-hp"><small>${enemy.hp.toLocaleString()}/${enemy.maxHp.toLocaleString()}</small><span class="health-bar"><span class="health-bar-fill" style="display:block;width:${enemy.hp/enemy.maxHp*100}%"></span></span></span>`:"";
+        const extra=enemy?`<span class="tracker-extra"><span class="enemy-hp-actions"><input class="text-input" type="number" min="1" placeholder="Dmg" data-tracker-amount="${esc(entry.key)}" aria-label="Damage to ${esc(info.name)}" style="width:70px"><button type="button" class="button" data-tracker-damage="${esc(entry.key)}">Hit</button></span></span>`
+          :`<span class="tracker-extra"><input class="text-input" data-tracker-note="${esc(entry.key)}" value="${esc(entry.note||"")}" placeholder="Notes, conditions" aria-label="Notes for ${esc(info.name)}"></span>`;
+        const sub=enemy?`AC ${statValue(enemy,"ac")} · ${enemy.conditions?esc(enemy.conditions):"Perception"}`:info.member?`AC ${info.member.ac} · HP ${info.member.hp}/${info.member.hpMax}`:"Added by hand";
+        return `<div class="tracker-row ${entry.kind}${index===tracker.turn?" current":""}${down?" down":""}" data-tracker-key="${esc(entry.key)}"><span class="pos">${index===tracker.turn?"▶":index+1}</span><span><strong>${esc(info.name)}${down?' <span class="squad-chip bad">Down</span>':""}</strong><small>${sub}</small>${hp}</span><input class="text-input roll-input" type="number" data-tracker-roll="${esc(entry.key)}" value="${entry.roll??""}" placeholder="Roll" aria-label="Initiative roll for ${esc(info.name)}"><span class="mod" title="${esc(info.modName)}"><b>${formatModifier(info.mod)}</b>${entry.kind==="enemy"?"Perc":"Init"}</span>${extra}</div>`;
+      }).join("");
+      const current=tracker.order[tracker.turn]; const currentInfo=current&&entryInfo(current);
+      body.innerHTML=`<div class="tracker-status"><span class="round-badge">Round ${tracker.round}</span>${currentInfo?`<span class="squad-line">Turn: <b>${esc(currentInfo.name)}</b></span>`:""}<label class="tracker-check"><input type="checkbox" id="trackerCountdown"${tracker.countdown?" checked":""}> Count squad stratagem cooldowns down each round</label></div>
+        <div class="tracker-order">${rows||'<p class="attack-note">Nobody in the order yet.</p>'}</div>
+        <div class="tracker-actions"><button type="button" class="button" id="sortTracker">Sort by initiative</button><button type="button" class="button" id="prevTurn">◀ Previous</button><button type="button" class="button primary" id="nextTurn">Next turn ▶</button></div>`;
+    }
+
+    // ---- Mission tracker ----------------------------------------------------------------------
+    // Reinforcements: 5 per diver by default (editable). The clock runs down 6 s per initiative-tracker round.
+    const missionKey = storageKey+"-mission";
+    const REINFORCEMENTS_PER_DIVER = 5;
+    const MISSION_STATUS = {active:"In progress", extraction:"Extraction called", extracted:"Extracted", failed:"Failed"};
+    const blankMission = () => { const size=Math.max(1,squad().length||party.size||4); return {started:false,name:"",difficulty:"",pool:REINFORCEMENTS_PER_DIVER*size,poolMax:REINFORCEMENTS_PER_DIVER*size,timeMax:40*60,timeLeft:40*60,status:"active",objectives:[],samples:{common:0,rare:0,super:0}}; };
+    let mission = (()=>{ const saved=readJson(missionKey); return saved&&typeof saved==="object"?{...blankMission(),...saved,samples:{common:0,rare:0,super:0,...(saved.samples||{})},objectives:Array.isArray(saved.objectives)?saved.objectives:[]}:blankMission(); })();
+    function persistMission() { writeJson(missionKey,mission); }
+    const clock = seconds => { const s=Math.max(0,Math.round(seconds)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
+    function passMissionTime(seconds) {
+      if(!mission.started||!["active","extraction"].includes(mission.status))return;
+      mission.timeLeft=Math.max(0,mission.timeLeft-seconds);
+      if(mission.timeLeft===0)showToast("Mission time is up: the Super Destroyer is leaving orbit");
+      persistMission();
+    }
+    function gmLog() { const log=readJson(gmLogKey); return Array.isArray(log)?log:[]; }
+    function renderMission() {
+      const members=squad();
+      const counter=(key,label,value,max)=>`<div class="counter"><span class="field-label">${label}</span><span class="counter-row"><button type="button" data-mission-step="${key}" data-step="-1" aria-label="Fewer ${label}">−</button><b>${value}${max!=null?` / ${max}`:""}</b><button type="button" data-mission-step="${key}" data-step="1" aria-label="More ${label}">+</button></span></div>`;
+      const timePct=mission.timeMax?mission.timeLeft/mission.timeMax*100:0;
+      const log=gmLog().slice(0,6);
+      document.getElementById("missionBody").innerHTML=`
+        <div class="panel-row mission-row">
+          <label>Mission<input class="text-input" data-mission="name" value="${esc(mission.name)}" placeholder="e.g. Eradicate Terminid swarm" style="min-width:210px"></label>
+          <label>Game difficulty<input class="text-input" data-mission="difficulty" value="${esc(mission.difficulty)}" placeholder="1–10" style="width:80px"></label>
+          <label>Length (min)<input class="text-input" type="number" min="1" max="120" data-mission="timeMax" value="${Math.round(mission.timeMax/60)}" style="width:80px"></label>
+          <label>Status<select class="text-input" data-mission="status">${Object.entries(MISSION_STATUS).map(([k,v])=>`<option value="${k}"${k===mission.status?" selected":""}>${v}</option>`).join("")}</select></label>
+        </div>
+        ${mission.started?"":`<p class="attack-note">Press <b>Start new mission</b> to send the squad out: every diver gets full HP, a fresh loadout and reset stratagems, and this panel resets.</p>`}
+        <div class="mission-grid">
+          <div class="mission-box">
+            <div class="clock-head"><span class="field-label">Mission clock</span><b class="${mission.timeLeft<=120?"clock-low":""}">${clock(mission.timeLeft)}</b></div>
+            <div class="health-bar"><div class="health-bar-fill" style="width:${timePct}%"></div></div>
+            <div class="hit-actions"><button type="button" class="button" data-mission-time="-60" title="One minute passes">−1 min</button><button type="button" class="button" data-mission-time="-6" title="One round (6 s) passes">−1 round</button><button type="button" class="button" data-mission-time="60">+1 min</button></div>
+            <p class="attack-note">Counts down 6 s for every round in the initiative tracker.</p>
+          </div>
+          <div class="mission-box">
+            ${counter("pool","Reinforcements",mission.pool,mission.poolMax)}
+            ${members.length?`<div class="reinforce-row"><select class="text-input" id="reinforceTarget" aria-label="Diver to reinforce">${members.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}${m.hp===0?" (down)":""}</option>`).join("")}</select><button type="button" class="button primary" id="reinforce"${mission.pool>0?"":" disabled"}>Reinforce</button></div>`:'<p class="attack-note">No squad saved yet.</p>'}
+            <p class="attack-note">Uses one reinforcement: the diver comes back at full HP with a fresh loadout (support weapon must be called in again).</p>
+          </div>
+          <div class="mission-box">
+            <span class="field-label">Samples</span>
+            <div class="sample-row">${counter("common","Common",mission.samples.common)}${counter("rare","Rare",mission.samples.rare)}${counter("super","Super",mission.samples.super)}</div>
+          </div>
+        </div>
+        <div class="mission-box objectives">
+          <span class="field-label">Objectives</span>
+          ${mission.objectives.map(o=>`<label class="objective${o.done?" done":""}"><input type="checkbox" data-objective-done="${esc(o.id)}"${o.done?" checked":""}><span>${esc(o.text)}</span><button type="button" data-objective-remove="${esc(o.id)}" aria-label="Remove objective">×</button></label>`).join("")||'<p class="attack-note">No objectives yet.</p>'}
+          <form class="objective-add" id="objectiveForm"><input class="text-input" id="objectiveText" maxlength="100" placeholder="Add an objective (main or side)" autocomplete="off"><button type="submit" class="button">Add</button></form>
+        </div>
+        ${log.length?`<div class="mission-box"><span class="field-label">Combat log (applied in the Character builder)</span><ul class="gm-log">${log.map(entry=>`<li>${esc(entry.text)}</li>`).join("")}</ul></div>`:""}`;
+    }
+    const factions=[...new Set(Object.values(library.enemies).map(e=>e.faction).filter(Boolean))].sort();
+    document.getElementById("libraryFaction").innerHTML+=factions.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("");
+    document.getElementById("librarySource").textContent=`${Object.keys(library.enemies).length} enemies · wiki snapshot ${library.generated||"—"}`;
+    function renderLibrary() {
+      const query=document.getElementById("librarySearch").value.trim().toLowerCase();
+      const faction=document.getElementById("libraryFaction").value;
+      const matches=Object.entries(library.enemies).filter(([name,e])=>(!faction||e.faction===faction)&&(!query||name.toLowerCase().includes(query))).sort((a,b)=>a[0].localeCompare(b[0]));
+      document.getElementById("libraryList").innerHTML=matches.map(([name,e])=>`<div class="library-item"><span><strong>${esc(name)}</strong><small>${esc(e.faction||"")}${e.health?` · ${e.health.toLocaleString()} HP`:""}${e.armor?` · ${esc(e.armor)}`:""} · lv ${defaultLevel(name)} · <a class="wiki-link" href="${esc(wikiUrl(e.page||name))}" target="_blank" rel="noopener" title="Open ${esc(name)} on the Helldivers Wiki">wiki ↗</a></small></span><button type="button" class="button" data-add-enemy="${esc(name)}">Add</button></div>`).join("")||'<p class="attack-note">No enemies match.</p>';
+    }
+
+    // ---- Enemy cards -------------------------------------------------------------------------
+    function toHitLine(enemy) {
+      const members=squad(); if(!members.length)return "";
+      const attack=statValue(enemy,"attack");
+      return `<p class="to-hit">To hit on a d20 (attack ${formatModifier(attack)}): ${members.map(m=>{const need=m.ac-attack;return `<b>${esc(m.name)}</b> AC ${m.ac}: ${need<=2?"2+ (only a 1 misses)":need>20?"needs a 20 (crit range only)":need+"+"}`;}).join(" · ")}</p>`;
+    }
+    function hpBar(enemy) { return `<div class="health-bar"><div class="health-bar-fill" style="width:${enemy.hp/enemy.maxHp*100}%"></div></div>`; }
+    function compactCard(enemy) {
+      const stats=["ac","attack","perception"].map(key=>`<span>${STATS.find(([k])=>k===key)[1]} <b>${key==="attack"?formatModifier(statValue(enemy,key)):statValue(enemy,key)}</b></span>`).join("");
+      return `<article class="enemy-card compact${enemy.maxHp&&enemy.hp===0?" dead":""}" data-enemy-id="${esc(enemy.id)}"><div class="compact-line">
+        <span><strong>${esc(enemy.name)}</strong> <small>Lv ${enemy.level}${enemy.threat!=="moderate"?" · "+enemy.threat:""}${enemy.armor?" · "+esc(enemy.armor):""}${enemy.conditions?" · "+esc(enemy.conditions):""}${enemy.base&&library.enemies[enemy.base]?` · <a class="wiki-link" href="${esc(wikiUrl(library.enemies[enemy.base].page||enemy.base))}" target="_blank" rel="noopener">wiki ↗</a>`:""}</small><span class="compact-stats">${stats}</span></span>
+        ${enemy.maxHp?`<span class="mini-hp"><small>${enemy.hp.toLocaleString()}/${enemy.maxHp.toLocaleString()}</small>${hpBar(enemy)}</span>`:"<span></span>"}
+        <span class="compact-actions">${enemy.maxHp?`<span class="enemy-hp-actions"><input class="text-input" type="number" min="1" data-enemy-amount placeholder="Dmg" aria-label="Damage amount" style="width:70px"><button type="button" class="button primary" data-enemy-hp="damage">Hit</button></span>`:""}<button type="button" class="button" data-enemy-action="expand" title="Show the full stat block">Expand</button></span>
+      </div></article>`;
+    }
+    // ---- Enemy attacks against divers ---------------------------------------------------------------
+    // The hit is queued in browser storage and applied by the Character builder (its armor, passives and limb
+    // rules), straight away if it's open in another tab, otherwise the next time it opens.
+    const DIVER_DAMAGE_TYPES = {standard:"Ballistic / standard", melee:"Melee", explosive:"Explosive", fire:"Fire", gas:"Gas", arc:"Arc / electrical", acid:"Acid", impact:"Impact / fall"};
+    const DIVER_LOCATIONS = {torso:"Torso", head:"Head", arms:"Arms", legs:"Legs"};
+    const gmActionsKey = storageKey+"-gm-actions";
+    const gmLogKey = storageKey+"-gm-log";
+    function guessDamageType(text) {
+      const t=String(text||"").toLowerCase();
+      if(/melee|claw|bite|stab|slash|swipe|punch|kick|stomp|trample|charge|slam/.test(t))return "melee";
+      if(/explos|rocket|mortar|missile|grenade|bomb|shell|cannon/.test(t))return "explosive";
+      if(/fire|flame|incend|burn|napalm/.test(t))return "fire";
+      if(/gas|spore/.test(t))return "gas";
+      if(/arc|electr|shock|lightning/.test(t))return "arc";
+      if(/acid|bile|caustic|spit/.test(t))return "acid";
+      return "standard";
+    }
+    function queueGmAction(action) {
+      let queue=[]; try { queue=JSON.parse(localStorage.getItem(gmActionsKey))||[]; } catch { queue=[]; }
+      queue.push({id:newId(),...action});
+      return writeJson(gmActionsKey,queue);
+    }
+    function strikeFormHtml(enemy,attack) {
+      const members=squad(); const strike=enemy.strike;
+      if(!members.length)return `<div class="strike-form"><p class="attack-note">No squad saved yet: open the Character builder once and your divers appear here.</p></div>`;
+      if(!members.some(m=>m.id===strike.target))strike.target=members[0].id;
+      const target=members.find(m=>m.id===strike.target);
+      const need=target.ac-statValue(enemy,"attack");
+      const damage=strike.damage===""?attack.damage:strike.damage;
+      const opt=(map,selected)=>Object.entries(map).map(([key,label])=>`<option value="${key}"${key===selected?" selected":""}>${esc(label)}</option>`).join("");
+      return `<div class="strike-form">
+        <div class="hit-grid">
+          <label class="hit-wide">Target<select class="text-input" data-strike="target">${members.map(m=>`<option value="${esc(m.id)}"${m.id===strike.target?" selected":""}>${esc(m.name)} · AC ${m.ac} · HP ${m.hp}/${m.hpMax}</option>`).join("")}</select></label>
+          <label>Where<select class="text-input" data-strike="location">${opt(DIVER_LOCATIONS,strike.location)}</select></label>
+          <label>Damage type<select class="text-input" data-strike="type">${opt(DIVER_DAMAGE_TYPES,strike.type)}</select></label>
+          <label>Damage<input class="text-input" type="number" min="1" data-strike="damage" value="${esc(damage)}"></label>
+          <label class="strike-crit"><span>Critical hit</span><input type="checkbox" data-strike="crit"${strike.crit?" checked":""}> ×2 damage</label>
+        </div>
+        <p class="hit-preview">Needs <b>${need<=2?"2+ (only a natural 1 misses)":need>20?"a natural 20":need+"+"}</b> on the d20 to hit ${esc(target.name)} (AC ${target.ac}, attack ${formatModifier(statValue(enemy,"attack"))}). Natural 20 or beating AC by 10 is a critical hit. Armor, passives and boosters are applied in the Character builder.</p>
+        <div class="hit-actions"><button type="button" class="button primary" data-send-strike>Hit ${esc(target.name)}${strike.crit?" (critical)":""}</button><button type="button" class="button" data-close-strike>Cancel</button></div>
+      </div>`;
+    }
+    // What a hit would do, before it's applied.
+    function hitPreview(enemy,list) {
+      const prefs=enemy.hitPrefs; const part=prefs.loc==="main"?null:list[Number(prefs.loc)];
+      const av=part?part.av:(avOf(enemy.armor)??0); const factor=penFactor(prefs.ap,av);
+      const exr=prefs.type==="explosive"?explosiveResist(enemy):0;
+      const target=`${penName(av)} AV ${av}`;
+      if(factor===0)return `<span class="hit-bad">AP ${prefs.ap} vs ${target}: ricochet, no damage</span>`;
+      const text=`AP ${prefs.ap} vs ${target}: ${factor===1?"full damage":"65% damage"}${exr?` · −${Math.round(exr*100)}% explosive resistance`:""}`;
+      if(!(prefs.damage>0))return text;
+      const perHit=Math.round(prefs.damage*factor*(1-exr));
+      const main=part?Math.round((part.maxHp!==null?Math.min(perHit,part.maxHp):perHit)*part.toMain):perHit;
+      return `${text} · ${perHit} per hit, ${main} to Main${prefs.hits>1?` (×${prefs.hits})`:""}`;
+    }
+    function hitFormHtml(enemy,list) {
+      const prefs=enemy.hitPrefs;
+      if(prefs.loc!=="main"&&!list[Number(prefs.loc)])prefs.loc="main";
+      const part=prefs.loc==="main"?null:list[Number(prefs.loc)];
+      const locOption=(value,label)=>`<option value="${value}"${String(value)===prefs.loc?" selected":""}>${esc(label)}</option>`;
+      const locations=locOption("main",`Body · ${enemy.armor||"no armor set"} · straight to Main`)+list.map(p=>locOption(p.index,`${p.name}${p.count>1?` (×${p.count})`:""} · AV ${p.av} · ${p.maxHp===null?"Main":p.maxHp.toLocaleString()+" HP"} · ${Math.round(p.toMain*100)}% to Main${p.isFatal?" · fatal":""}`)).join("");
+      const apOptions=Array.from({length:11},(_,n)=>`<option value="${n}"${n===prefs.ap?" selected":""}>AP ${n}${penName(n)?" · "+penName(n):""}</option>`).join("");
+      return `<div class="hit-form">
+        <div class="hit-grid">
+          <label class="hit-wide">Where it hits<select class="text-input" data-hit="loc">${locations}</select></label>
+          ${part&&part.count>1?`<label>Which one<input class="text-input" type="number" min="1" max="${part.count}" data-hit="copy" value="${Math.min(prefs.copy,part.count)}"></label>`:""}
+          <label class="hit-wide">Weapon<select class="text-input" data-hit="weapon">${weaponOptions(prefs.weapon)}</select></label>
+          <label>Damage<input class="text-input" type="number" min="1" data-hit="damage" value="${prefs.damage}" placeholder="per hit"></label>
+          <label>Penetration<select class="text-input" data-hit="ap">${apOptions}</select></label>
+          <label>Type<select class="text-input" data-hit="type"><option value="standard"${prefs.type==="standard"?" selected":""}>Standard</option><option value="explosive"${prefs.type==="explosive"?" selected":""}>Explosive</option></select></label>
+          <label>Hits<input class="text-input" type="number" min="1" max="60" data-hit="hits" value="${prefs.hits}"></label>
+        </div>
+        <p class="hit-preview">${hitPreview(enemy,list)}</p>
+        <div class="hit-actions"><button type="button" class="button primary" data-apply-hit>Apply hit</button><button type="button" class="button" data-enemy-hp="heal" title="Heal Main HP by the damage amount">Heal Main</button><button type="button" class="button" data-enemy-hp="restore">Restore all</button></div>
+        ${enemy.lastHit?`<p class="last-hit">${esc(enemy.lastHit)}</p>`:""}
+      </div>`;
+    }
+    function enemyCard(enemy) {
+      if(enemy.compact)return compactCard(enemy);
+      const data=enemy.base?library.enemies[enemy.base]:null;
+      const statInputs=STATS.map(([key,label,auto])=>`<label title="${enemy.overrides[key]!=null?"Set by hand · clear to use "+auto(enemy):"Calculated · type to override"}"><span>${label}</span><input type="number" data-enemy-stat="${key}" placeholder="${key==="attack"?formatModifier(auto(enemy)):auto(enemy)}" value="${enemy.overrides[key]??""}" aria-label="${label}"></label>`).join("");
+      const hpBlock=enemy.maxHp?`<div><div class="squad-line"><b>Main HP ${enemy.hp.toLocaleString()} / ${enemy.maxHp.toLocaleString()}</b>${enemy.hp===0?' <span class="squad-chip bad">Down</span>':""}${data?.healthNote&&data.healthNote!==String(data.health)?` <small class="attack-note">(wiki: ${esc(data.healthNote)})</small>`:""}</div>${hpBar(enemy)}</div><span></span>`
+        :'<p class="attack-note">Set Max HP to track health.</p><span></span>';
+      const attack=statValue(enemy,"attack");
+      const attacks=enemy.attacks.map((a,i)=>`<div class="attack-row"><input class="text-input" data-attack-field="name" data-attack-index="${i}" value="${esc(a.name)}" placeholder="Attack" aria-label="Attack name"><input class="text-input" type="number" data-attack-field="damage" data-attack-index="${i}" value="${esc(a.damage)}" placeholder="Damage" aria-label="Damage"><input class="text-input type" data-attack-field="type" data-attack-index="${i}" value="${esc(a.type)}" placeholder="Type" aria-label="Damage type"><span class="roll" title="Attack bonus">${formatModifier(attack)}</span><button type="button" class="strike-button${enemy.strike?.index===i?" open":""}" data-open-strike="${i}" title="Hit a diver with this attack" aria-label="Hit a diver with ${esc(a.name||"this attack")}">⚔</button><button type="button" data-remove-attack="${i}" aria-label="Remove attack">×</button></div>${enemy.strike?.index===i?strikeFormHtml(enemy,a):""}`).join("");
+      const list=partList(enemy);
+      const partState=part=>part.maxHp===null?"Main":Array.from({length:part.count},(_,i)=>partHp(enemy,part,i+1)).map(hp=>hp===0?"✖":hp.toLocaleString()).join(" · ")+` / ${part.maxHp.toLocaleString()}`;
+      const parts=list.length?`<details class="item-effect-details enemy-section"${enemy.anatomyOpen?" open":""} data-anatomy><summary>Anatomy (${list.length} parts)</summary><div class="item-details-body"><table class="item-details-table anatomy-table"><thead><tr><th>Part</th><th>HP now</th><th>Armor</th><th>To Main</th><th>Fatal</th></tr></thead><tbody>${list.map(p=>`<tr${p.maxHp!==null&&Array.from({length:p.count},(_,i)=>partHp(enemy,p,i+1)).every(hp=>hp===0)?' class="destroyed"':""}><td>${esc(p.name)}${p.count>1?` ×${p.count}`:""}</td><td>${partState(p)}</td><td>${esc(p.armor)}</td><td>${Math.round(p.toMain*100)}%</td><td>${esc(p.fatal)}</td></tr>`).join("")}</tbody></table></div></details>`:"";
+      const hitForm=enemy.maxHp?hitFormHtml(enemy,list):"";
+      const xp=enemyXp(enemy);
+      return `<article class="enemy-card${enemy.maxHp&&enemy.hp===0?" dead":""}" data-enemy-id="${esc(enemy.id)}">
+        <div class="enemy-head"><input class="text-input" data-enemy-field="name" value="${esc(enemy.name)}" aria-label="Enemy name"><span class="actions"><button type="button" class="button" data-enemy-action="compact" title="Shrink to one line">Compact</button><button type="button" class="button" data-enemy-action="duplicate" title="Add another of this enemy">Duplicate</button><button type="button" class="button" data-enemy-action="remove">Remove</button></span></div>
+        ${data?.description||data?`<p class="item-details-desc">${data?.description?esc(data.description)+" ":""}${data?`<a class="wiki-link" href="${esc(wikiUrl(data.page||enemy.base))}" target="_blank" rel="noopener">${esc(enemy.base)} on the wiki ↗</a>`:""}</p>`:""}
+        <div class="enemy-meta">
+          <label>Faction<input class="text-input" data-enemy-field="faction" value="${esc(enemy.faction)}" placeholder="Faction"></label>
+          <label>Level<input class="text-input" type="number" min="0" max="20" data-enemy-field="level" value="${enemy.level}" style="width:70px"></label>
+          <label>Threat<select class="text-input" data-enemy-field="threat">${Object.keys(THREAT).map(t=>`<option value="${t}"${t===enemy.threat?" selected":""}>${t[0].toUpperCase()+t.slice(1)}</option>`).join("")}</select></label>
+          <label>Body armor<select class="text-input" data-enemy-field="armor">${["",...ARMOR_OPTIONS,...(enemy.armor&&!ARMOR_OPTIONS.includes(enemy.armor)?[enemy.armor]:[])].map(a=>`<option value="${esc(a)}"${a===enemy.armor?" selected":""}>${esc(a||"—")}</option>`).join("")}</select></label>
+          <label>Max HP<input class="text-input" type="number" min="1" data-enemy-field="maxHp" value="${enemy.maxHp??""}" style="width:100px"></label>
+          ${data?.explosiveResist?`<label>Explosive resist<span class="text-input" style="display:flex;align-items:center">${esc(data.explosiveResist)}</span></label>`:""}
+          <label>Conditions<input class="text-input" data-enemy-field="conditions" value="${esc(enemy.conditions)}" placeholder="e.g. Frightened 1, Prone" style="min-width:150px"></label>
+          <label>Worth<span class="text-input" style="display:flex;align-items:center" title="Encounter XP against the party level">${xp.xp} XP</span></label>
+        </div>
+        <div class="enemy-stats">${statInputs}</div>
+        <div class="enemy-hp">${hpBlock}</div>
+        ${hitForm}
+        <div class="enemy-section"><h4>Attacks · damage in game numbers</h4>${attacks||'<p class="attack-note">No attacks yet.</p>'}${toHitLine(enemy)}<button type="button" class="button add-attack" data-add-attack>+ Attack</button></div>
+        ${parts}
+        <div class="enemy-section"><h4>Notes</h4><textarea class="text-input loadout-area" data-enemy-field="notes" placeholder="Tactics, abilities, weak spots, loot…">${esc(enemy.notes)}</textarea></div>
+      </article>`;
+    }
+
+    // ---- Saved encounters --------------------------------------------------------------------
+    const savedEncounters = () => { const saved=readJson(savedKey); return saved&&typeof saved==="object"&&!Array.isArray(saved)?saved:{}; };
+    function renderSaved() {
+      const saved=savedEncounters(); const names=Object.keys(saved).sort((a,b)=>a.localeCompare(b));
+      const select=document.getElementById("savedEncounters");
+      select.innerHTML=names.length?names.map(name=>`<option value="${esc(name)}">${esc(name)} (${saved[name].enemies.length})</option>`).join(""):'<option value="">No saved encounters</option>';
+      document.getElementById("loadEncounter").disabled=!names.length;
+      document.getElementById("deleteEncounter").disabled=!names.length;
+    }
+
+    function render() {
+      document.getElementById("enemyCount").textContent=encounter.length?`· ${encounter.length} enem${encounter.length===1?"y":"ies"}`:"";
+      document.getElementById("enemyList").innerHTML=encounter.map(enemyCard).join("")||'<div class="enemy-empty">No enemies yet. Add some from the library, or build a custom one.</div>';
+      document.getElementById("toggleCompact").textContent=encounter.length&&encounter.every(e=>e.compact)?"Expand all":"Compact all";
+      renderDifficulty(); renderTracker(); renderMission();
+    }
+    const findEnemy = node => encounter.find(e=>e.id===node.closest("[data-enemy-id]")?.dataset.enemyId);
+    function damageEnemy(enemy,amount) {
+      if(!enemy.maxHp)return showToast("Set a Max HP first");
+      if(!(amount>0))return showToast("Enter an amount above zero");
+      enemy.hp=Math.max(0,enemy.hp-amount);
+      showToast(`${enemy.name}: −${amount} · ${enemy.hp.toLocaleString()} HP`+(enemy.hp===0?" · down":""));
+    }
+
+    // ---- Events ------------------------------------------------------------------------------
+    document.getElementById("librarySearch").addEventListener("input",renderLibrary);
+    document.getElementById("libraryFaction").addEventListener("change",renderLibrary);
+    document.getElementById("libraryList").addEventListener("click",event=>{
+      const add=event.target.closest("[data-add-enemy]"); if(!add)return;
+      const count=addCount();
+      for(let i=0;i<count;i++)encounter.push(enemyFromLibrary(add.dataset.addEnemy));
+      persist(); render(); showToast(`${count>1?count+"× ":""}${add.dataset.addEnemy} added`);
+    });
+    document.getElementById("addCustom").addEventListener("click",()=>{
+      encounter.push(normalizeEnemy({name:uniqueName("Custom enemy"),level:party.level,threat:"moderate",attacks:[{name:"",damage:"",type:""}]}));
+      persist(); render(); document.querySelector(".enemy-card:last-child [data-enemy-field='name']")?.select();
+    });
+    document.getElementById("enemyList").addEventListener("toggle",event=>{
+      if(!event.target.matches?.("[data-anatomy]"))return;
+      const enemy=findEnemy(event.target); if(enemy)enemy.anatomyOpen=event.target.open;
+    },true);
+    document.getElementById("enemyList").addEventListener("change",event=>{
+      const enemy=findEnemy(event.target); if(!enemy)return;
+      const strikeField=event.target.dataset.strike;
+      if(strikeField&&enemy.strike){
+        if(strikeField==="crit")enemy.strike.crit=event.target.checked;
+        else if(strikeField==="damage")enemy.strike.damage=event.target.value===""?"":Math.max(1,Math.round(Number(event.target.value))||1);
+        else enemy.strike[strikeField]=event.target.value;
+        render(); return;
+      }
+      const hitField=event.target.dataset.hit;
+      if(hitField){
+        const prefs=enemy.hitPrefs; const value=event.target.value;
+        if(hitField==="weapon"){
+          prefs.weapon=value; const preset=weaponPreset(value);
+          if(preset){prefs.damage=preset.damage;prefs.ap=preset.ap;prefs.type=preset.explosive?"explosive":"standard";}
+        }
+        else if(hitField==="loc"){prefs.loc=value;prefs.copy=1;}
+        else if(hitField==="type")prefs.type=value==="explosive"?"explosive":"standard";
+        else if(hitField==="damage")prefs.damage=value===""?"":Math.max(1,Math.round(Number(value))||1);
+        else prefs[hitField]=Math.max(hitField==="ap"?0:1,Math.round(Number(value))||0);
+        if(["damage","ap","type"].includes(hitField)){const preset=weaponPreset(prefs.weapon);if(preset&&(preset.damage!==prefs.damage||preset.ap!==prefs.ap))prefs.weapon="";}
+        persist(); render(); return;
+      }
+      const field=event.target.dataset.enemyField, stat=event.target.dataset.enemyStat, attackField=event.target.dataset.attackField;
+      if(field){
+        const value=event.target.value;
+        if(field==="level")enemy.level=Math.max(0,Math.min(20,Math.round(Number(value))||0));
+        else if(field==="maxHp"){const max=Math.round(Number(value));enemy.maxHp=max>0?max:null;enemy.hp=enemy.maxHp===null?null:Math.min(enemy.hp??enemy.maxHp,enemy.maxHp);}
+        else enemy[field]=value;
+      } else if(stat){
+        if(event.target.value==="")delete enemy.overrides[stat]; else enemy.overrides[stat]=Math.round(Number(event.target.value));
+      } else if(attackField){
+        const attack=enemy.attacks[Number(event.target.dataset.attackIndex)];
+        attack[attackField]=attackField==="damage"?(event.target.value===""?"":Math.round(Number(event.target.value))):event.target.value;
+      } else return;
+      persist();
+      // Free-text fields don't change any other number, so keep the cursor where it is.
+      if(["notes","faction"].includes(field)||attackField)return;
+      if(field==="name"||field==="conditions"){renderTracker();return;}
+      render();
+    });
+    document.getElementById("enemyList").addEventListener("click",event=>{
+      const enemy=findEnemy(event.target); if(!enemy)return;
+      const action=event.target.closest("[data-enemy-action]")?.dataset.enemyAction;
+      const hp=event.target.closest("[data-enemy-hp]")?.dataset.enemyHp;
+      const removeAttack=event.target.closest("[data-remove-attack]");
+      if(action==="remove"){encounter=encounter.filter(e=>e!==enemy);showToast(enemy.name+" removed");}
+      else if(action==="duplicate"){const copy=normalizeEnemy({...JSON.parse(JSON.stringify(enemy)),id:newId(),name:uniqueName(enemy.name),hp:enemy.maxHp,parts:{},lastHit:""});encounter.splice(encounter.indexOf(enemy)+1,0,copy);showToast(copy.name+" added");}
+      else if(action==="compact")enemy.compact=true;
+      else if(action==="expand")enemy.compact=false;
+      else if(event.target.closest("[data-open-strike]")){
+        const index=Number(event.target.closest("[data-open-strike]").dataset.openStrike); const attack=enemy.attacks[index];
+        enemy.strike=enemy.strike?.index===index?null:{index,target:enemy.strike?.target||"",location:"torso",type:guessDamageType(`${attack.type} ${attack.name}`),damage:"",crit:false};
+        return render();
+      }
+      else if(event.target.closest("[data-close-strike]")){enemy.strike=null;return render();}
+      else if(event.target.closest("[data-send-strike]")){
+        const strike=enemy.strike; const attack=enemy.attacks[strike.index]; const target=squad().find(m=>m.id===strike.target);
+        const base=Number(strike.damage===""?attack.damage:strike.damage);
+        if(!target)return showToast("Pick a diver to hit");
+        if(!(base>0))return showToast("This attack has no damage set");
+        const amount=strike.crit?base*2:base;
+        const source=`${enemy.name}'s ${attack.name||"attack"}${strike.crit?" (critical)":""}`;
+        if(queueGmAction({type:"damage",charId:target.id,location:strike.location,damageType:strike.type,amount,source})){
+          showToast(`${amount} ${DIVER_DAMAGE_TYPES[strike.type].toLowerCase()} damage sent to ${target.name}'s ${DIVER_LOCATIONS[strike.location].toLowerCase()} · applies in the Character builder`);
+          enemy.strike={...strike,crit:false,damage:""};
+        }
+        return render();
+      }
+      else if(event.target.closest("[data-apply-hit]")){
+        const prefs=enemy.hitPrefs;
+        if(!(prefs.damage>0))return showToast("Enter the damage per hit, or pick a weapon");
+        enemy.lastHit=applyHit(enemy,{loc:prefs.loc,copy:prefs.copy,damage:prefs.damage,ap:prefs.ap,explosive:prefs.type==="explosive",hits:prefs.hits});
+        showToast(`${enemy.name}: ${enemy.hp.toLocaleString()} HP`+(enemy.hp===0?" · down":""));
+      }
+      else if(hp==="restore"){enemy.hp=enemy.maxHp;enemy.parts={};enemy.lastHit="";showToast(`${enemy.name} fully restored`);}
+      else if(hp==="damage"){
+        // Compact cards: straight to Main HP, no armor check.
+        damageEnemy(enemy,Math.round(Number(event.target.closest(".enemy-card").querySelector("[data-enemy-amount]")?.value)));
+      }
+      else if(hp==="heal"){
+        const amount=enemy.hitPrefs.damage;
+        if(!(amount>0))return showToast("Put the healing amount in the Damage box");
+        enemy.hp=Math.min(enemy.maxHp,enemy.hp+amount); showToast(`${enemy.name}: +${amount} · ${enemy.hp.toLocaleString()} HP`);
+      }
+      else if(event.target.closest("[data-add-attack]"))enemy.attacks.push({name:"",damage:"",type:""});
+      else if(removeAttack)enemy.attacks.splice(Number(removeAttack.dataset.removeAttack),1);
+      else return;
+      persist(); render();
+    });
+    document.getElementById("enemyList").addEventListener("keydown",event=>{
+      if(event.key!=="Enter"||!event.target.matches("[data-enemy-amount]"))return;
+      event.preventDefault(); event.target.closest(".enemy-card").querySelector("[data-enemy-hp='damage']")?.click();
+    });
+    document.getElementById("toggleCompact").addEventListener("click",()=>{const all=encounter.every(e=>e.compact);encounter.forEach(e=>e.compact=!all);persist();render();});
+    document.getElementById("healAll").addEventListener("click",()=>{encounter.forEach(e=>{if(e.maxHp)e.hp=e.maxHp;e.parts={};e.lastHit="";});persist();render();showToast("All enemies at full HP");});
+    document.getElementById("clearEnemies").addEventListener("click",()=>{if(!encounter.length||!window.confirm("Remove every enemy from this encounter?"))return;encounter=[];persist();render();showToast("Encounter cleared");});
+    document.getElementById("printEnemies").addEventListener("click",()=>window.print());
+
+    // Party
+    ["partyLevel","partySize"].forEach(id=>document.getElementById(id).addEventListener("change",()=>{
+      party={level:Math.max(1,Math.min(20,Math.round(Number(document.getElementById("partyLevel").value))||1)),size:Math.max(1,Math.min(12,Math.round(Number(document.getElementById("partySize").value))||1))};
+      writeJson(partyKey,party); render();
+    }));
+    document.getElementById("partyFromSquad").addEventListener("click",()=>{
+      if(!squad().length)return showToast("No squad saved yet: open the Character builder first");
+      party=squadParty(); writeJson(partyKey,party); render(); showToast(`Party: ${party.size} diver${party.size===1?"":"s"}, level ${party.level}`);
+    });
+
+    // Saved encounters
+    document.getElementById("saveEncounter").addEventListener("click",()=>{
+      const input=document.getElementById("encounterName"); const name=input.value.trim();
+      if(!encounter.length)return showToast("Add some enemies first");
+      if(!name){input.focus();return showToast("Give the encounter a name");}
+      const saved=savedEncounters();
+      if(saved[name]&&!window.confirm(`Replace the saved encounter "${name}"?`))return;
+      saved[name]={savedAt:Date.now(),enemies:encounter.map(e=>({...JSON.parse(JSON.stringify(e)),hp:e.maxHp,parts:{},lastHit:""}))};
+      if(writeJson(savedKey,saved)){renderSaved();document.getElementById("savedEncounters").value=name;showToast(`Saved "${name}"`);}
+    });
+    document.getElementById("loadEncounter").addEventListener("click",()=>{
+      const name=document.getElementById("savedEncounters").value; const entry=savedEncounters()[name]; if(!entry)return;
+      if(encounter.length&&!window.confirm(`Replace the current encounter with "${name}"?`))return;
+      encounter=entry.enemies.map(e=>normalizeEnemy({...e,id:newId()})).filter(Boolean);
+      document.getElementById("encounterName").value=name;
+      if(tracker.active){tracker.active=false;persistTracker();}
+      persist(); render(); showToast(`Loaded "${name}"`);
+    });
+    document.getElementById("deleteEncounter").addEventListener("click",()=>{
+      const name=document.getElementById("savedEncounters").value; const saved=savedEncounters(); if(!saved[name])return;
+      if(!window.confirm(`Delete the saved encounter "${name}"? This can't be undone.`))return;
+      delete saved[name]; writeJson(savedKey,saved); renderSaved(); showToast(`Deleted "${name}"`);
+    });
+
+    // Tracker
+    document.getElementById("trackerPanel").addEventListener("click",event=>{
+      const id=event.target.id;
+      if(id==="startTracker")return startTracker();
+      if(id==="endTracker"){if(!window.confirm("End the encounter and clear the initiative order?"))return;tracker={active:false,round:1,turn:0,order:[],countdown:tracker.countdown};persistTracker();return renderTracker();}
+      if(id==="sortTracker")return sortTracker();
+      if(id==="nextTurn")return advanceTurn(1);
+      if(id==="prevTurn")return advanceTurn(-1);
+      if(id==="addDiver")return addDiverByHand();
+      const hit=event.target.closest("[data-tracker-damage]");
+      if(hit){
+        const entry=tracker.order.find(e=>e.key===hit.dataset.trackerDamage); const enemy=entry&&enemyById(entry.ref); if(!enemy)return;
+        damageEnemy(enemy,Math.round(Number(document.querySelector(`[data-tracker-amount="${CSS.escape(entry.key)}"]`).value)));
+        persist(); render();
+      }
+    });
+    document.getElementById("trackerPanel").addEventListener("change",event=>{
+      if(event.target.id==="trackerCountdown"){tracker.countdown=event.target.checked;persistTracker();return;}
+      const rollKey=event.target.dataset.trackerRoll, noteKey=event.target.dataset.trackerNote;
+      const entry=tracker.order.find(e=>e.key===(rollKey||noteKey)); if(!entry)return;
+      if(rollKey)entry.roll=event.target.value===""?null:Math.round(Number(event.target.value));
+      else entry.note=event.target.value.slice(0,120);
+      persistTracker();
+    });
+    document.getElementById("trackerPanel").addEventListener("keydown",event=>{
+      if(event.key!=="Enter")return;
+      if(event.target.matches("[data-tracker-amount]")){event.preventDefault();document.querySelector(`[data-tracker-damage="${CSS.escape(event.target.dataset.trackerAmount)}"]`)?.click();}
+      else if(event.target.matches("[data-tracker-roll]")){
+        // Enter moves to the next roll box, so a GM can type every roll in a row.
+        event.preventDefault(); event.target.dispatchEvent(new Event("change",{bubbles:true}));
+        const boxes=[...document.querySelectorAll("[data-tracker-roll]")]; boxes[boxes.indexOf(event.target)+1]?.focus();
+      }
+    });
+    // Mission panel
+    document.getElementById("startMission").addEventListener("click",()=>{
+      if(!window.confirm("Start a new mission? Every diver is restored to full HP with a fresh loadout and reset stratagems (applied in the Character builder), and this panel resets."))return;
+      const keep={name:mission.name,difficulty:mission.difficulty,timeMax:mission.timeMax};
+      mission={...blankMission(),...keep,timeLeft:keep.timeMax,started:true,objectives:mission.objectives.map(o=>({...o,done:false}))};
+      persistMission(); queueGmAction({type:"newMission"}); renderMission();
+      showToast("Mission started · squad restored in the Character builder");
+    });
+    const missionBody=document.getElementById("missionBody");
+    missionBody.addEventListener("click",event=>{
+      const step=event.target.closest("[data-mission-step]");
+      if(step){
+        const key=step.dataset.missionStep, delta=Number(step.dataset.step);
+        if(key==="pool")mission.pool=Math.max(0,Math.min(mission.poolMax+20,mission.pool+delta));
+        else mission.samples[key]=Math.max(0,(mission.samples[key]||0)+delta);
+        persistMission(); return renderMission();
+      }
+      const time=event.target.closest("[data-mission-time]");
+      if(time){
+        const delta=Number(time.dataset.missionTime);
+        if(delta<0){ if(!mission.started){mission.started=true;} passMissionTime(-delta); }
+        else { mission.timeLeft=Math.min(mission.timeMax,mission.timeLeft+delta); persistMission(); }
+        return renderMission();
+      }
+      if(event.target.id==="reinforce"){
+        const id=document.getElementById("reinforceTarget").value; const member=squad().find(m=>m.id===id);
+        if(!member||mission.pool<=0)return;
+        mission.pool--; persistMission();
+        queueGmAction({type:"reinforce",charId:id});
+        showToast(`${member.name} reinforced · ${mission.pool} reinforcement${mission.pool===1?"":"s"} left`);
+        return renderMission();
+      }
+      const remove=event.target.closest("[data-objective-remove]");
+      if(remove){mission.objectives=mission.objectives.filter(o=>o.id!==remove.dataset.objectiveRemove);persistMission();renderMission();}
+    });
+    missionBody.addEventListener("change",event=>{
+      const field=event.target.dataset.mission;
+      if(field==="timeMax"){const minutes=Math.max(1,Math.min(120,Math.round(Number(event.target.value))||40));const used=mission.timeMax-mission.timeLeft;mission.timeMax=minutes*60;mission.timeLeft=Math.max(0,mission.timeMax-used);}
+      else if(field)mission[field]=event.target.value.slice(0,80);
+      const done=event.target.dataset.objectiveDone;
+      if(done){const objective=mission.objectives.find(o=>o.id===done);if(objective)objective.done=event.target.checked;}
+      if(!field&&!done)return;
+      persistMission(); if(field!=="name"&&field!=="difficulty")renderMission();
+    });
+    missionBody.addEventListener("submit",event=>{
+      if(event.target.id!=="objectiveForm")return;
+      event.preventDefault();
+      const text=document.getElementById("objectiveText").value.trim(); if(!text)return;
+      mission.objectives.push({id:newId(),text:text.slice(0,100),done:false}); persistMission(); renderMission();
+      document.getElementById("objectiveText").focus();
+    });
+    // Squad changes saved in the builder (another tab) show up here straight away, as does the combat log.
+    window.addEventListener("storage",event=>{ if(event.key===squadSummaryKey)render(); if(event.key===gmLogKey)renderMission(); });
+
+    renderLibrary(); renderSaved(); render();
+  </script>
+</body>
+</html>

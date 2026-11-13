@@ -1,0 +1,4 @@
+# Local tool settings, not part of the site
+.claude/
+__pycache__/
+*.pyc
